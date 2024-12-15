@@ -1,0 +1,6 @@
+GIS Final Project Data Download Links:
+1. Income per Capita data is obtained from the Los Angeles Geohub: https://geohub.lacity.org/datasets/63e23c9798e34723822ede90529ec176_0/explore?location=33.772002%2C-118.302668%2C8.54
+
+2. Vulnerable Populations data is gathered from the Los Angeles Geohub: https://geohub.lacity.org/datasets/8787a7662a164620a64ecda7ef82b079_0/explore?location=33.772030%2C-118.299079%2C8.54 :::
+
+3. LA County Boundary Shapefile for Density Plot: https://geohub.lacity.org/datasets/lahub::county-boundary/explore
