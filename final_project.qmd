@@ -1,0 +1,327 @@
+---
+title: "Final Project"
+author: "Caleb Wensloff"
+format: html
+editor: visual
+---
+
+## Summary
+
+The project examines income inequality and whether it directly impacts the vulnerability level to natural disasters within local communities. Income inequality, defined as an uneven distribution of income across a population, leaves a wide impact on significant portions of society. Anything from health outcomes to the availability of resources, the overall well-being of a population can be directly impacted by income inequality. The same could be said about vulnerabilities to disasters, where income inequality might also directly impact low-income households. 
+
+The project focuses on the urban region of Los Angeles, California, the second most populated city in the United States. Using available data, the analysis helps to determine whether a relationship exists between income inequality and vulnerability to disasters.
+
+## 1. Background
+
+Developed nations have seen a steady increase in the unequal distribution of wealth since 1990. In the United States, the distribution of wealth among high-income earners was 71 times greater than that of low-income individuals—a 97% increase from levels recorded in 1963. The figure below from a [Pew Research](https://www.pewresearch.org/social-trends/2020/01/09/trends-in-income-and-wealth-inequality/) study highlights this growing income gap between the lower and middle class against the upper-income households. While lower income households have remained relatively stagnant in their level of aggregate income, middle class households have seen a decline while the upper-income category increased substantially in aggregate income since 1970.
+
+![](images/clipboard-1335312348.png)
+
+This growing wealth disparity profoundly affects community well-being in the U.S., particularly by reducing the ability for low-income communities to recover in the event of disaster. These disparities not only influence the availability of resources in providing aid, but also provide increased hardship on low-income groups who would face greater challenges in their own recovery.
+
+Varying attributes have been known to make populations vulnerable to natural disasters. For example, those living in drought-like conditions are known to experience an increased risk of wildfire due to the current climate conditions in the region. Others living along coastlines experience an elevated risk of experiencing tsunamis, and those living along fault lines are more vulnerable to earthquake activity.
+
+## 2. Hypothesis
+
+The study hypothesizes that regions in Los Angeles with lower income levels are more at risk for needing increased support in the event of a disaster. The objective is to analyze spatial patterns using GIS tools, test the hypothesis with formal spatial analysis methods, and provide actionable steps to further explore the relationship.
+
+The hypothesis relates to the second-order property of the observations within the dataset. The project looks into how areas with lower incomes may be more vulnerable compared with other higher-income locations within a city. Whether high-risk areas match clusters of socioeconomically disadvantaged regions would help to see if a relationship exists. This spatial relationship seems to occur within clusters, involving spatial patterns of observation.
+
+**Libraries**
+
+The libraries used to create the visuals are below.
+
+<button id="toggleButton" onclick="toggleCode()">
+
+Show Code
+
+</button>
+
+::: {#codeBlock style="display:none;"}
+```{r, echo=TRUE}
+#| label: libraries
+library(sf) |> suppressPackageStartupMessages()
+library(tmap) |> suppressPackageStartupMessages()
+library(ggplot2) |> suppressPackageStartupMessages()
+library(dplyr) |> suppressPackageStartupMessages()
+library(spdep) |> suppressPackageStartupMessages()
+library(spatstat) |> suppressPackageStartupMessages()
+```
+
+```{r, echo=TRUE}
+#| label: datasets
+vulnerability_shapefile <- st_read("Social_Vulnerability_Index_2020.shp")
+incomepercapita_shapefile <- st_read("Income_per_Capita_(census_tract).shp")
+```
+:::
+
+```{=html}
+<script> function toggleCode() { var codeBlock = document.getElementById('codeBlock'); var button = document.getElementById('toggleButton'); if (codeBlock.style.display === 'none') { codeBlock.style.display = 'block'; button.innerHTML = 'Hide Code'; } else { codeBlock.style.display = 'none'; button.innerHTML = 'Show Code'; } } </script>
+```
+
+## 3.1: Population Vulnerability
+
+The following section highlights the vulnerability risks throughout the Los Angeles region. The map shows the distribution of vulnerability based on the Social Vulnerability Index (SVI), a tool used to measure the likelihood of communities needing support in the event of disaster. The categorization method is used by city public health and emergency response planners to indentify the most vulnerable.
+
+```{r, echo=TRUE}
+#| label: Population Vulnerability
+
+# Reorganizing Categories for Map
+vulnerability_shapefile$VULNERABIL <- factor(vulnerability_shapefile$VULNERABIL,
+                                             levels = c("Low", "Low to Medium", "Medium to High", "High"),
+                                             labels = c("Low", "Low to Medium", "Medium to High", "High"))
+
+#Map
+tmap_mode("view")
+tm_shape(vulnerability_shapefile) +
+  tm_fill("VULNERABIL", 
+          palette = c("darkgreen", "lightgreen", "orange", "darkred"),
+          title = "Population Vulnerability",
+          alpha = 0.7) +
+  tm_borders(lwd = 0.4, col = "black") +
+  
+  # Basemap of Los Angeles
+  tm_basemap(leaflet::providers$CartoDB.Positron) +
+  tm_layout(legend.outside = TRUE) +
+  tm_view(bbox = c(-118.75, 33.5, -118.15, 34.3))
+
+# The number of tracts within each category of Vulnerability
+vulnerability_counts <- table(vulnerability_shapefile$VULNERABIL)
+vulnerability_counts
+
+
+```
+
+The categories of population vulnerability among Census tracts shows four categories representing (1) high, (2) high to medium, (3) medium to low, and (4) low risks of needing increased support before, during, and after a hazardous event. Each category has the following number of tracts:
+
+-   **Low:** 450
+-   **Low to Medium:** 498
+-   **Medium to High:** 634
+-   **High:** 888
+
+## 3.2: Income per Capita
+
+The following chart describes the level of income per capita throughout the Los Angeles region.
+
+```{r, echo=TRUE}
+
+tmap_mode("view")
+tmap_options(check.and.fix = TRUE)
+
+incomepercapita_shapefile <- incomepercapita_shapefile[!is.na(incomepercapita_shapefile$income_per) & 
+                                                                  incomepercapita_shapefile$income_per > 0, ]
+
+incomepercapita_shapefile <- incomepercapita_shapefile %>%
+  mutate(
+    income_category = case_when(
+      income_per >= 893 & income_per <= 18941 ~ "Low",
+      income_per > 18941 & income_per <= 25461 ~ "Low to Medium",
+      income_per > 25461 & income_per <= 35117 ~ "Medium",
+      income_per > 35117 & income_per <= 51249 ~ "Medium to High",
+      income_per > 51249 & income_per <= 209447 ~ "High",
+      TRUE ~ NA_character_  # Assign NA for values outside the specified range
+    )
+  )
+
+incomepercapita_shapefile <- incomepercapita_shapefile %>%
+  mutate(
+    income_category = factor(
+      income_category,
+      levels = c("Low", "Low to Medium", "Medium", "Medium to High", "High"),
+      labels = c("$893 to $18,941", "$18,941 to $25,461", "$25,461 to $35,117", "$35,117 to $51,249", "$51,249 to $209,447")
+    )
+  )
+
+# Interactive Map
+income_map <- tm_shape(incomepercapita_shapefile) +
+  tm_fill("income_category",
+          title = "Income Per Capita",
+          style = "quantile",
+          palette = c("darkred", "orange", "yellow", "lightgreen", "darkgreen"),
+          alpha = 0.7,
+          popup.vars = TRUE) +
+  tm_borders(lwd = 0.4, col = "black") +
+  tm_layout(legend.outside = TRUE)
+
+#Basemap of Los Angeles
+basemap <- tm_basemap(leaflet::providers$CartoDB.Positron) +
+  tm_layout(legend.outside = TRUE) +
+  tm_view(bbox = c(-118.75, 33.5, -118.15, 34.3))  # LA Boundaries
+
+# Combine the map layers
+basemap + income_map
+
+```
+
+Income per capita is used to measure the average income per person, and effectively breaks down the city into small geographic subsamples. Dark red is meant to indicate the lowest levels of income, representing a yearly rate ranging from \$893 to \$18,941 per year.
+
+In comparing this visualization and the population vulnerability, both visualizations show a similarity between income level and vulnerability between the populations in Los Angeles. However, it's rather difficult to assess the number of low income AND high vulnerability Census tracts merely through comparing the two visuals. The following section highlights initial evidence of this relationship.
+
+## 3.3: Initial Evidence of the Relationship
+
+In assessing an initial correlation between income inequality and high vulnerability, it's consequential to see areas with low income and high rates of vulnerability. Given that we now have an initial level of understanding on the makeup of each, we can now see if there's an overlap between the two visualization.
+
+```{r}
+incomepercapita_shapefile <- incomepercapita_shapefile %>%
+  mutate(
+    categorized_income_category = case_when(
+      income_category == "$893 to $18,941" ~ "Low",
+      income_category == "$18,941 to $25,461" ~ "Low to Medium",
+      income_category == "$25,461 to $35,117" ~ "Medium",
+      income_category == "$35,117 to $51,249" ~ "Medium to High",
+      income_category == "$51,249 to $209,447" ~ "High",
+      TRUE ~ NA_character_
+    )
+  )
+
+#Combining Shapefiles
+combined_shapefile <- st_intersection(incomepercapita_shapefile, vulnerability_shapefile)
+
+low_income_high_vulnerability <- combined_shapefile %>%
+  filter(VULNERABIL == "High" & categorized_income_category == "Low")
+
+tmap_mode("view")
+tm_shape(low_income_high_vulnerability) +
+  tm_fill(col = "red", alpha = 0.7, title = "Low Income & High Vulnerability") +
+  tm_borders(lwd = 0.5, col = "black") +
+  tm_layout(title = "Low Income Areas with High Vulnerability")
+```
+
+In running the interactive map, it becomes clear that there are many Census tracts that share low income and high vulnerability attributes. The cluster seems to occur mostly in the heart of the city, with smaller clusters occurring throughout. The next step would be to formally test these results to assess whether the hypothesis has some validity.
+
+## 4. Formal Hypothesis Testing
+
+### (a) Intensity Function
+
+The following plots the Intensity Function for the spatial data.
+
+```{r, echo=TRUE}
+
+# Define centroids and coordinates
+centroids <- st_centroid(incomepercapita_shapefile)
+coords <- st_coordinates(centroids)
+
+# Validate coordinates
+valid_coords <- coords[!is.na(coords[, 1]) & !is.na(coords[, 2]), ]
+
+# Read and transform LA boundary shapefile
+la_polygon <- st_read("County_Boundary.shp")
+la_polygon <- st_transform(la_polygon, st_crs(incomepercapita_shapefile))
+
+# Convert to spatstat window
+owin_la <- as.owin(la_polygon)
+
+# Create point pattern
+ppp_income <- ppp(x = valid_coords[, 1], y = valid_coords[, 2], window = owin_la)
+
+# Kernel density
+density_ppp <- density(ppp_income, sigma = 100)
+
+# Plot kernel density
+par(mar = c(5, 5, 2, 2))
+par(cex = 1.1)
+plot(density_ppp, 
+     main = "Kernel Density of Low-Income Areas in Los Angeles", 
+     main.cex = 1.5,
+     legend.args = list(text = "Density", side = 3, line = 0.5, cex = 1.2))
+
+
+```
+
+### (b) Simulation for Null Hypothesis
+
+The following visualization plots the data using a 999 Monte Carlo Simulation to assess whether a relationship exists.
+
+```{r}
+
+vulnerability_shapefile <- st_read("Social_Vulnerability_Index_2020.shp")
+vulnerability_shapefile <- st_transform(vulnerability_shapefile, st_crs(incomepercapita_shapefile))
+vulnerability_centroids <- st_centroid(vulnerability_shapefile)
+vulnerability_coords <- st_coordinates(vulnerability_centroids)
+
+valid_vulnerability_coords <- vulnerability_coords[!is.na(vulnerability_coords[, 1]) & !is.na(vulnerability_coords[, 2]), ]
+
+ppp_vulnerability <- ppp(x = valid_vulnerability_coords[, 1], 
+                          y = valid_vulnerability_coords[, 2], 
+                          window = owin_la)
+
+income_marks <- rep(1, length(ppp_income$x))
+vulnerability_marks <- rep(2, length(ppp_vulnerability$x))
+
+combined_x <- c(ppp_income$x, ppp_vulnerability$x)
+combined_y <- c(ppp_income$y, ppp_vulnerability$y)
+combined_marks <- c(income_marks, vulnerability_marks)
+
+combined_window <- ppp(x = combined_x, y = combined_y, window = owin_la, marks = factor(combined_marks))
+
+K_obs <- Kcross(combined_window, rmax = 0.1)
+
+n_simulations <- 999
+set.seed(123)
+K_sim <- envelope(
+  combined_window, 
+  Kcross, 
+  nsim = n_simulations,
+  simulate = expression(rlabel(combined_window)),
+  rmax = 0.1
+)
+
+plot(K_sim, 
+     main = "Monte Carlo Simulations for Cross-K Function",
+     col = "blue", 
+     legend = TRUE)
+lines(K_obs$r, K_obs$iso, col = "red", lwd = 2, lty = 2)
+
+```
+
+### (c) Comparing Both Results
+
+```{r}
+obs_r <- K_obs$r 
+obs_iso <- K_obs$iso
+
+sim_upper <- K_sim$hi 
+sim_lower <- K_sim$lo 
+
+plot(K_sim, 
+     main = "Comparison of Observed and Simulated PCFs",
+     xlab = "Distance (r)", 
+     ylab = "PCF (K Function)", 
+     col = "blue", 
+     legend = TRUE)
+
+lines(obs_r, obs_iso, col = "red", lwd = 2, lty = 2)
+
+legend("topright", 
+       legend = c("Observed PCF", "Simulated Envelope"), 
+       col = c("red", "blue"), 
+       lwd = c(2, 1), 
+       lty = c(2, 1))
+
+
+deviations <- obs_iso < sim_lower | obs_iso > sim_upper
+percent_deviation <- mean(deviations) * 100
+cat("Percentage of deviations from the null hypothesis:", percent_deviation, "%\n")
+
+
+```
+
+## 5. Final Results
+
+For the Monte Carlo Simulation, the observed line lies above the upper bound of the null hypothesis line. This result provides evidence for a **positive relationship** between low-income areas and high vulnerability, as the observed correlation lies above the envelope. The interpretation means that low-income areas tend to cluster around high-vulnerability areas more than expected. This result supports our hypothesis that low-income communities tend to be more vulnerable to natural disasters. These results also match with the intensity function, showing the general locations of the clusters.
+
+In addition, the total amount of deviations away from the null hypothesis was roughly 92.4%, indicating that spatial patterns of the low-income and high vulnerability areas are not random.
+
+## 6. Roadmap for Further Research
+
+In assessing further steps for research, it could be beneficial to extend the analysis to include other socioeconomic variables. Some relevant examples include education, health access, or transportation within the city of Los Angeles. Assessing other potential factors would refine our understanding of vulnerability and the potential reasons why particular communities are most at risk. In addition, examining other major cities or regions regarding income and vulnerability could further see if a relationship does exist between the two.
+
+Finally, it would be interesting to conduct a temporal analysis to see whether these patterns have shifted over time or remained constant. For example, maybe particular neighborhoods have lowered their ranking on the vulnerability scale, while others have increased. Examining data over time could create a more complete picture of income disparity and high rates of vulnerability.
+
+## 7. Work Cited
+
+**1. Income per Capita** data is obtained from the Los Angeles Geohub: https://geohub.lacity.org/datasets/63e23c9798e34723822ede90529ec176_0/explore?location=33.772002%2C-118.302668%2C8.54
+
+**2. Vulnerable Populations** data is gathered from the Los Angeles Geohub: https://geohub.lacity.org/datasets/8787a7662a164620a64ecda7ef82b079_0/explore?location=33.772030%2C-118.299079%2C8.54 :::
+
+**3. LA County Boundary Shapefile for Density Plot:** https://geohub.lacity.org/datasets/lahub::county-boundary/explore
