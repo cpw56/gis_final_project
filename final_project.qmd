@@ -310,7 +310,7 @@ cat("Percentage of deviations from the null hypothesis:", percent_deviation, "%\
 
 For the Monte Carlo Simulation, the observed line lies above the upper bound of the null hypothesis line. This result provides evidence for a **positive relationship** between low-income areas and high vulnerability, as the observed correlation lies above the envelope. The interpretation means that low-income areas tend to cluster around high-vulnerability areas more than expected. This result supports our hypothesis that low-income communities tend to be more vulnerable to natural disasters. These results also match with the intensity function, showing the general locations of the clusters.
 
-In addition, the total amount of deviations away from the null hypothesis was roughly 92.4%, indicating that spatial patterns of the low-income and high vulnerability areas are not random.
+In addition, the total amount of deviations away from the null hypothesis was roughly 74.85%, indicating that spatial patterns of the low-income and high vulnerability areas are not random.
 
 ## 6. Roadmap for Further Research
 
